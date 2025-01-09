@@ -1,8 +1,8 @@
-# Model Index
+# Laravel Model Index
 
 ## Overview
 
-This package provides an easy to use query bilder to filter, sort, search, and paginate a listing Laravel models.
+This package provides an easy to use Query Builder to filter, sort, search, and paginate Laravel models.
 
 ## Usage
 
@@ -12,15 +12,34 @@ Install the package via composer:
 composer require aw-studio/laravel-model-index
 ```
 
-In the Model you want to index, use the `HasQueryIndex` trait:
+The model to which the index endpoint refers must have the following trait added:
 
 ```php
-use AwStudio\ModelIndex\HasQueryIndex;
+class MyModel extends EloquentModel {
+
+    use HasQueryIndex;
+
+}
 ```
 
 ### Filtering
 
-The package supports advanced filtering using query parameters. Basic filtering can be done by adding the `filter` query parameter to the URL with the column name as the key and the value as the value. For example:
+The Index Query Builder supports filtering from query parameters nearly out of the box. All you have to do is to configure which model attributes are filterable.
+This can be done when using the index in the controller:
+
+```php
+
+public function index(Request $request){
+    MyModel::index()
+            ->filterable(['name', 'age']
+            ->get();
+}
+```
+
+Or if you'd like to resue the Index multiple times and always have the same filter options enabled, you may add a `filterable` property or method to the Model which should return an array attribute names.
+
+
+Filtering the index list is now as simple as adding the query parameter “filter” to the URL with the attribute name as the key and a value. For example:
 
 ```sh
 http://localhost?filter[name]=John
