@@ -1,0 +1,70 @@
+{
+  "name": "aw-studio/model-index",
+  "description": "Filterable, sortable, searchable index listing for laravel models",
+  "keywords": [
+    "aw-studio",
+    "laravel",
+    "model-index",
+    "query-builder"
+  ],
+  "homepage": "https://github.com/aw-studio/model-index",
+  "license": "MIT",
+  "version": "0.1.0",
+  "authors": [
+    {
+      "name": "Lukas Heller",
+      "email": "dev@lukas-heller.de"
+    },
+    {
+      "name": "Jannes Carstens-Behrens",
+      "email": "jannes@aw-studio.de"
+    }
+  ],
+  "require": {
+    "illuminate/database": "^11",
+    "illuminate/http": "^11"
+  },
+  "require-dev": {
+    "pestphp/pest": "^3.7",
+    "orchestra/testbench": "^9.9",
+    "spatie/laravel-ray": "^1.39",
+    "laravel/pint": "^1.19"
+  },
+  "autoload": {
+    "psr-4": {
+      "AwStudio\\ModelIndex\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/",
+      "Workbench\\App\\": "workbench/app/",
+      "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+      "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+    }
+  },
+  "minimum-stability": "stable",
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
+  "scripts": {
+    "post-autoload-dump": [
+      "@clear",
+      "@prepare"
+    ],
+    "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+    "prepare": "@php vendor/bin/testbench package:discover --ansi",
+    "build": "@php vendor/bin/testbench workbench:build --ansi",
+    "serve": [
+      "Composer\\Config::disableProcessTimeout",
+      "@build",
+      "@php vendor/bin/testbench serve --ansi"
+    ],
+    "test": [
+      "@clear",
+      "@php vendor/bin/pest"
+    ]
+  }
+}
