@@ -128,8 +128,13 @@ trait FilterIndex
                 continue;
             }
 
-            if ($this->getFilterableFields() != ['*'] && ! in_array($field, $this->getFilterableFields())) {
+            // check if custom filter callback is set
+            if (isset($this->customCallbacks[$field])) {
+                $this->customCallbacks[$field]($this->query, $value);
+                continue;
+            }
 
+            if ($this->getFilterableFields() != ['*'] && ! in_array($field, $this->getFilterableFields())) {
                 throw new \InvalidArgumentException("Filtering by {$field} is not allowed.");
             }
 

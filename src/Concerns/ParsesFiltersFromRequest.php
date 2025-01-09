@@ -44,12 +44,6 @@ trait ParsesFiltersFromRequest
             if (in_array($key, ['$and', '$or'])) {
                 $filters[$key] = array_map([$this, 'parseFilters'], $value);
             } else {
-                // check if custom filter callback is set
-                if (isset($this->customCallbacks[$key])) {
-                    $filters[] = $this->customCallbacks[$key]($this->query, $value);
-                    continue;
-                }
-
                 $filters[] = $this->parseCondition($key, $value);
             }
         }

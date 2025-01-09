@@ -275,17 +275,17 @@ test('it filters AND connected filters', function () {
 });
 
 test('It filters by custom filters', function () {
+    TestModel::factory(['name' => 'foon'])->create();
     TestModel::factory(['name' => 'foob'])->create();
 
     makeRequest('http://localhost?filter[customFilterKey]=foob');
 
     $index = TestModel::index()
-        ->filter('customFilterKey', function ($query, $value) {
-            $query->where('name', $value);
-        })
+        ->filter('customFilterKey', fn($query, $value) => $query->where('name', $value))
         ->get();
 
     expect($index->count())->toBe(1);
+    expect($index->first()->name)->toBe('foob');
 });
 
 
@@ -332,7 +332,7 @@ test('it filters with multiple combined filters and nested logical filters', fun
 
     makeRequest('http://localhost?' . $httpQuery);
 
-    ray()->showQueries();
+    // ray()->showQueries();
     $index = TestModel::index()->get();
 
     expect($index->count())->toBe(1);
