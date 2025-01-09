@@ -1,5 +1,5 @@
 {
-  "name": "aw-studio/model-index",
+  "name": "aw-studio/laravel-model-index",
   "description": "Filterable, sortable, searchable index listing for laravel models",
   "keywords": [
     "aw-studio",
