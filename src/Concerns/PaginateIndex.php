@@ -28,6 +28,8 @@ trait PaginateIndex
 
         $perPage = $request->get('perPage', $this->perPage);
 
-        return $this->query()->paginate($perPage, ['*'], $this->pageName);
+        return $this->query()
+            ->paginate($perPage, ['*'], $this->pageName)
+            ->withQueryString();
     }
 }
