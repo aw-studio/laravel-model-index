@@ -20,13 +20,13 @@ trait PaginateIndex
         return $this;
     }
 
-    public function paginateFromRequest(Request $request)
+    public function paginateFromRequest(Request $request, $perPage = null)
     {
-        if (($request->has('page') || $request->has('perPage')) == false) {
+        if (($request->has('page') || $request->has('perPage')) == false && $perPage === null) {
             return $this;
         }
 
-        $perPage = $request->get('perPage', $this->perPage);
+        $perPage = $perPage ?? $request->get('perPage', $this->perPage);
 
         return $this->query()
             ->paginate($perPage, ['*'], $this->pageName)
