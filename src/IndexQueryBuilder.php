@@ -58,6 +58,13 @@ class IndexQueryBuilder
 
         return $this->returnResults($this->query->get());
     }
+    
+    public function paginate($perPage = null)
+    {
+        $this->applyRequestQuery();
+
+        return $this->returnResults($this->paginateFromRequest($this->request, $perPage));
+    }
 
     public function first()
     {
