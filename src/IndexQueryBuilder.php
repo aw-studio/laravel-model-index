@@ -97,6 +97,14 @@ class IndexQueryBuilder
             : $results;
     }
 
+ 
+    public function tap($callback)
+    {
+        $callback($this);
+
+        return $this;
+    }
+
     public function __call($name, $arguments)
     {
         $this->query->$name(...$arguments);
