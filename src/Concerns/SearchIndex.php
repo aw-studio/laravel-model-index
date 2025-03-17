@@ -28,7 +28,7 @@ trait SearchIndex
                 if (strpos($field, '.') !== false) {
                     [$relation, $field] = explode('.', $field);
 
-                    $query = $this->searchRelated($query, $relation, $search);
+                    $query = $this->searchRelated($query, $relation, $field, $search);
 
                     continue;
                 }
@@ -39,10 +39,10 @@ trait SearchIndex
         return $this;
     }
 
-    protected function searchRelated($query, $field, $search)
+    protected function searchRelated($query, $relation, $field, $search)
     {
-        return $query->orWhereHas($field, function ($query) use ($search) {
-            $query->where('name', 'like', "%{$search}%");
+        return $query->orWhereHas($relation, function ($query) use ($search, $field) {
+            $query->where($field, 'like', "%{$search}%");
         });
     }
 
