@@ -10,7 +10,7 @@ trait SearchIndex
 
     public function searchable(array $fields)
     {
-        $this->filterableFields = $fields;
+        $this->searchableFields = $fields;
 
         return $this;
     }
