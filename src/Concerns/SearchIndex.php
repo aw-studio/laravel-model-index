@@ -25,11 +25,25 @@ trait SearchIndex
 
         $this->query()->where(function ($query) use ($search) {
             foreach ($this->getSearchableFields() as $field) {
+                if (strpos($field, '.') !== false) {
+                    [$relation, $field] = explode('.', $field);
+
+                    $query = $this->searchRelated($query, $relation, $search);
+
+                    continue;
+                }
                 $query->orWhere($field, 'like', "%{$search}%");
             }
         });
 
         return $this;
+    }
+
+    protected function searchRelated($query, $field, $search)
+    {
+        return $query->orWhereHas($field, function ($query) use ($search) {
+            $query->where('name', 'like', "%{$search}%");
+        });
     }
 
     protected function getSearchableFields(): array
