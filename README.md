@@ -16,9 +16,11 @@ composer require aw-studio/laravel-model-index
 The model to which the index endpoint refers must have the following trait added:
 
 ```php
+use AwStudio\ModelIndex\Traits\HasIndexQuery;
+
 class MyModel extends EloquentModel {
 
-    use HasQueryIndex;
+    use HasIndexQuery;
 
 }
 ```
