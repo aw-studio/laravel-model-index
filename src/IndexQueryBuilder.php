@@ -88,6 +88,8 @@ class IndexQueryBuilder
         $this->sortFromRequest($this->request);
 
         $this->searchFromRequest($this->request);
+
+        return $this;
     }
 
     public function returnResults($results)
