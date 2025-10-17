@@ -2,12 +2,12 @@
 
 namespace AwStudio\ModelIndex\Concerns;
 
-use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
-use AwStudio\ModelIndex\Concerns\ParsesFiltersFromRequest;
+use Illuminate\Http\Request;
 
 /**
  * @mixin \AwStudio\ModelIndex\IndexQueryBuilder
+ *
  * @property \Illuminate\Database\Eloquent\Builder $query
  */
 trait FilterIndex
@@ -22,12 +22,11 @@ trait FilterIndex
     /**
      * @var array Custom filter callbacks.
      */
-    protected $customCallbacks = [];
+    protected $customFilterCallbacks = [];
 
     /**
      * Set the fields that can be filtered.
      *
-     * @param array $fields
      * @return $this
      */
     public function filterable(array $fields)
@@ -40,7 +39,6 @@ trait FilterIndex
     /**
      * Apply filters from the request to the query.
      *
-     * @param \Illuminate\Http\Request $request
      * @return $this
      */
     public function filterFromRequest(Request $request)
@@ -55,17 +53,16 @@ trait FilterIndex
     /**
      * Register a custom filter callback.
      *
-     * @param string $key
-     * @param callable $callback
+     * @param  string  $key
+     * @param  callable  $callback
      * @return $this
      */
     public function filter($key, $callback)
     {
-        $this->customCallbacks[$key] = $callback;
+        $this->customFilterCallbacks[$key] = $callback;
 
         return $this;
     }
-
 
     /**
      * Get the list of filterable fields.
@@ -93,14 +90,13 @@ trait FilterIndex
         return [];
     }
 
-
     /**
      * Apply filters to the query.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param array $filters
-     * @param string $logicalOperator
+     * @param  array  $filters
+     * @param  string  $logicalOperator
      * @return void
+     *
      * @throws \InvalidArgumentException
      */
     protected function applyFilters(Builder $query, $filters, $logicalOperator = '$and')
@@ -109,6 +105,7 @@ trait FilterIndex
 
             if ($this->isNestedFilter($filter)) {
                 $this->handleNestedFilter($query, $filter, $key, $logicalOperator);
+
                 continue;
             }
 
@@ -129,8 +126,9 @@ trait FilterIndex
             }
 
             // check if custom filter callback is set
-            if (isset($this->customCallbacks[$field])) {
-                $this->customCallbacks[$field]($this->query, $value);
+            if (isset($this->customFilterCallbacks[$field])) {
+                $this->customFilterCallbacks[$field]($this->query, $value);
+
                 continue;
             }
 
@@ -153,7 +151,7 @@ trait FilterIndex
     /**
      * Check if the filter is nested.
      *
-     * @param mixed $filter
+     * @param  mixed  $filter
      * @return bool
      */
     protected function isNestedFilter($filter)
@@ -164,10 +162,9 @@ trait FilterIndex
     /**
      * Handle nested filters.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param array $filter
-     * @param string $key
-     * @param string $logicalOperator
+     * @param  array  $filter
+     * @param  string  $key
+     * @param  string  $logicalOperator
      * @return void
      */
     protected function handleNestedFilter(Builder $query, $filter, $key, $logicalOperator = '$and')
@@ -178,6 +175,7 @@ trait FilterIndex
             $query->where(function ($query) use ($filter, $filterOperator) {
                 $this->applyFilters($query, $filter, $filterOperator);
             });
+
             return;
         }
 
@@ -187,11 +185,10 @@ trait FilterIndex
     /**
      * Apply a basic condition to the query.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $field
-     * @param string $operator
-     * @param mixed $value
-     * @param string $logicalOperator
+     * @param  string  $field
+     * @param  string  $operator
+     * @param  mixed  $value
+     * @param  string  $logicalOperator
      * @return void
      */
     protected function applyBasicCondition(Builder $query, $field, $operator, $value, $logicalOperator)
@@ -201,12 +198,6 @@ trait FilterIndex
 
     /**
      * Apply a "where in" condition to the query.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $field
-     * @param array $value
-     * @param string $logicalOperator
-     * @return void
      */
     protected function applyWhereInCondition(Builder $query, string $field, array $value, string $logicalOperator): void
     {
@@ -215,12 +206,6 @@ trait FilterIndex
 
     /**
      * Apply a "where not in" condition to the query.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $field
-     * @param array $value
-     * @param string $logicalOperator
-     * @return void
      */
     protected function applyWhereNotInCondition(Builder $query, string $field, array $value, string $logicalOperator): void
     {
@@ -229,12 +214,6 @@ trait FilterIndex
 
     /**
      * Apply a "where between" condition to the query.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $field
-     * @param array $value
-     * @param string $logicalOperator
-     * @return void
      */
     protected function applyWhereBetweenCondition(Builder $query, string $field, array $value, string $logicalOperator): void
     {
@@ -243,11 +222,6 @@ trait FilterIndex
 
     /**
      * Apply a "where null" condition to the query.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $field
-     * @param string $logicalOperator
-     * @return void
      */
     protected function applyWhereNullCondition(Builder $query, string $field, string $logicalOperator): void
     {
@@ -256,11 +230,6 @@ trait FilterIndex
 
     /**
      * Apply a "where not null" condition to the query.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $field
-     * @param string $logicalOperator
-     * @return void
      */
     protected function applyWhereNotNullCondition(Builder $query, string $field, string $logicalOperator): void
     {

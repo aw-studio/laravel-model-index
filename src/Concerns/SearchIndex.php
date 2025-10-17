@@ -11,7 +11,7 @@ trait SearchIndex
     /**
      * @var array Custom search callbacks.
      */
-    protected $customCallbacks = [];
+    protected $customSearchCallbacks = [];
 
     /**
      * Register a custom search callback.
@@ -22,7 +22,7 @@ trait SearchIndex
      */
     public function search($key, $callback)
     {
-        $this->customCallbacks[$key] = $callback;
+        $this->customSearchCallbacks[$key] = $callback;
 
         return $this;
     }
@@ -44,8 +44,8 @@ trait SearchIndex
 
         $this->query()->where(function ($query) use ($search) {
             foreach ($this->getSearchableFields() as $field) {
-                if (isset($this->customCallbacks[$field])) {
-                    $callback = $this->customCallbacks[$field];
+                if (isset($this->customSearchCallbacks[$field])) {
+                    $callback = $this->customSearchCallbacks[$field];
                     $callback($query, $search);
 
                     continue;
@@ -77,7 +77,7 @@ trait SearchIndex
             ? $this->query()->getModel()->getConnection()->getSchemaBuilder()->getColumnListing($this->query()->getModel()->getTable())
             : [
                 ...$this->searchableFields,
-                ...array_keys($this->customCallbacks),
+                ...array_keys($this->customSearchCallbacks),
             ];
     }
 }
