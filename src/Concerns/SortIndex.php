@@ -11,7 +11,7 @@ trait SortIndex
     /**
      * @var array Custom sorting callbacks.
      */
-    protected $customCallbacks = [];
+    protected $customSortCallbacks = [];
 
     public function sortable(array $fields)
     {
@@ -29,7 +29,7 @@ trait SortIndex
      */
     public function sort($key, $callback)
     {
-        $this->customCallbacks[$key] = $callback;
+        $this->customSortCallbacks[$key] = $callback;
 
         return $this;
     }
@@ -55,8 +55,8 @@ trait SortIndex
                 throw new \InvalidArgumentException("Sorting by {$sortField} is not allowed.");
             }
 
-            if (isset($this->customCallbacks[$sortField])) {
-                $this->customCallbacks[$sortField]($this->query(), $sortDirection);
+            if (isset($this->customSortCallbacks[$sortField])) {
+                $this->customSortCallbacks[$sortField]($this->query(), $sortDirection);
 
                 continue;
             }
