@@ -23,7 +23,6 @@ test('it filters with alternative syntax', function () {
     expect($index->count())->toBe(2);
 });
 
-
 test('it filters with Equal comperator', function () {
     TestModel::factory(['age' => 20])->create();
     $foo = TestModel::factory(['age' => 21])->create();
@@ -60,7 +59,6 @@ test('it filters with GreaterThan comperator', function () {
     expect($index->pluck('id')->toArray())->toBe([$foo->id]);
 });
 
-
 test('it filters with GreaterThanOrEqual comperator', function () {
     TestModel::factory(['age' => 18])->create();
     $foo = TestModel::factory(['age' => 20])->create();
@@ -73,7 +71,6 @@ test('it filters with GreaterThanOrEqual comperator', function () {
     expect($index->count())->toBe(2);
     expect($index->pluck('id')->toArray())->toBe([$foo->id, $bar->id]);
 });
-
 
 test('It filters with LessThan comperator', function () {
     TestModel::factory(['age' => 20])->create();
@@ -88,7 +85,7 @@ test('It filters with LessThan comperator', function () {
 });
 
 test('it filters with LessThanOrEqual comperator', function () {
-    $baz  = TestModel::factory(['age' => 18])->create();
+    $baz = TestModel::factory(['age' => 18])->create();
     $foo = TestModel::factory(['age' => 20])->create();
     $bar = TestModel::factory(['age' => 21])->create();
 
@@ -99,7 +96,6 @@ test('it filters with LessThanOrEqual comperator', function () {
     expect($index->count())->toBe(2);
     expect($index->pluck('id')->toArray())->toBe([$baz->id, $foo->id]);
 });
-
 
 test('it filters with contains comperator', function () {
     TestModel::factory(['name' => 'foo'])->create();
@@ -162,7 +158,6 @@ test('it filters with not null comperator', function () {
     expect($index->pluck('id')->toArray())->toBe([1]);
 });
 
-
 test('if filters with startsWith comperator', function () {
     TestModel::factory(['name' => 'foobar'])->create();
     $bar = TestModel::factory(['name' => 'bar'])->create();
@@ -187,12 +182,10 @@ test('it filters with endsWith comperator', function () {
     expect($index->pluck('id')->toArray())->toBe([$foobar->id, $bar->id]);
 });
 
-
-
 test('it filters filters multiple with nested OR and AND', function () {
     TestModel::factory([
         'name' => 'lol',
-        'age' => 17
+        'age' => 17,
     ])->count(5)->create();
     $bar = TestModel::factory(['name' => 'bar', 'age' => 18])->create();
     $foo = TestModel::factory(['name' => 'foo', 'age' => 20])->create();
@@ -202,31 +195,30 @@ test('it filters filters multiple with nested OR and AND', function () {
             '$or' => [
                 [
                     'name' => [
-                        '$eq' => 'foo'
-                    ]
+                        '$eq' => 'foo',
+                    ],
                 ],
                 [
                     'name' => [
-                        '$eq' => 'bar'
-                    ]
+                        '$eq' => 'bar',
+                    ],
                 ],
             ],
             'age' => [
-                '$gt' => 17
-            ]
+                '$gt' => 17,
+            ],
         ],
     ];
 
     $httpQuery = http_build_query($filters);
 
-    makeRequest('http://localhost?' . $httpQuery);
+    makeRequest('http://localhost?'.$httpQuery);
 
     $index = TestModel::index()->get();
 
     expect($index->count())->toBe(2);
     expect($index->pluck('id')->toArray())->toBe([$bar->id, $foo->id]);
 });
-
 
 test('it filters multiple in using nested array syntax', function () {
     TestModel::factory()->count(10)->create();
@@ -266,7 +258,7 @@ test('it filters AND connected filters', function () {
     TestModel::factory(['name' => 'foob'])->count(2)->create();
     $foo = TestModel::factory(['name' => 'foob'])->create();
 
-    makeRequest('http://localhost?filter[$and][0][id]=' . $foo->id . '&filter[$and][1][name]=foob');
+    makeRequest('http://localhost?filter[$and][0][id]='.$foo->id.'&filter[$and][1][name]=foob');
 
     $index = TestModel::index()->get();
 
@@ -281,16 +273,15 @@ test('It filters by custom filters', function () {
     makeRequest('http://localhost?filter[customFilterKey]=foob');
 
     $index = TestModel::index()
-        ->filter('customFilterKey', fn($query, $value) => $query->where('name', $value))
+        ->filter('customFilterKey', fn ($query, $value) => $query->where('name', $value))
         ->get();
 
     expect($index->count())->toBe(1);
     expect($index->first()->name)->toBe('foob');
 });
 
-
 test('it filters with multiple combined filters and nested logical filters', function () {
-    $foo = TestModel::factory(['title' => 'Gatore', 'name' =>  'Johnny', 'color' => 'red', 'age' => 20])->create();
+    $foo = TestModel::factory(['title' => 'Gatore', 'name' => 'Johnny', 'color' => 'red', 'age' => 20])->create();
     $foo = TestModel::factory(['title' => 'Gato', 'name' => 'John', 'color' => 'red', 'age' => 20])->create();
     $bar = TestModel::factory(['title' => 'Gato', 'name' => 'Paul', 'color' => 'blue', 'age' => 21])->create();
     $baz = TestModel::factory(['title' => 'Gato', 'name' => 'George', 'color' => 'green', 'age' => 22])->create();
@@ -330,7 +321,7 @@ test('it filters with multiple combined filters and nested logical filters', fun
 
     $httpQuery = http_build_query(['filter' => $complexFilter]);
 
-    makeRequest('http://localhost?' . $httpQuery);
+    makeRequest('http://localhost?'.$httpQuery);
 
     // ray()->showQueries();
     $index = TestModel::index()->get();
@@ -352,4 +343,81 @@ test('It can handle relation filters with custom filters', function () {
         })
         ->get();
     expect($index->first()->user->name)->toBe('Max');
+});
+
+test('it filters with multiple values using in operator', function () {
+    $a = TestModel::factory(['name' => 'Alice'])->create();
+    $b = TestModel::factory(['name' => 'Bob'])->create();
+    TestModel::factory(['name' => 'Charlie'])->create();
+
+    makeRequest('http://localhost?filter[name][]=Alice&filter[name][]=Bob');
+
+    $index = TestModel::index()->get();
+
+    expect($index->count())->toBe(2);
+    expect($index->pluck('name')->toArray())->toBe(['Alice', 'Bob']);
+});
+
+test('it filters with multiple values using explicit $in operator', function () {
+    $a = TestModel::factory(['id' => 1])->create();
+    $b = TestModel::factory(['id' => 2])->create();
+    $c = TestModel::factory(['id' => 3])->create();
+
+    makeRequest('http://localhost?filter[id][$in][0]=1&filter[id][$in][1]=2');
+
+    $index = TestModel::index()->get();
+
+    expect($index->count())->toBe(2);
+    expect($index->pluck('id')->toArray())->toBe([1, 2]);
+});
+
+test('it filters with multiple values using $notIn operator', function () {
+    $a = TestModel::factory(['id' => 1])->create();
+    $b = TestModel::factory(['id' => 2])->create();
+    $c = TestModel::factory(['id' => 3])->create();
+
+    makeRequest('http://localhost?filter[id][$notIn][0]=1&filter[id][$notIn][1]=2');
+
+    $index = TestModel::index()->get();
+
+    expect($index->count())->toBe(1);
+    expect($index->pluck('id')->toArray())->toBe([3]);
+});
+
+test('it filters with custom callback using multiple values', function () {
+    $a = TestModel::factory(['name' => 'Alice'])->create();
+    $b = TestModel::factory(['name' => 'Bob'])->create();
+    TestModel::factory(['name' => 'Charlie'])->create();
+
+    makeRequest('http://localhost?filter[customNames][]=Alice&filter[customNames][]=Bob');
+
+    $index = TestModel::index()
+        ->filter('customNames', function ($query, $values) {
+            $query->whereIn('name', $values);
+        })
+        ->get();
+
+    expect($index->count())->toBe(2);
+    expect($index->pluck('name')->toArray())->toBe(['Alice', 'Bob']);
+});
+
+test('it filters with nested OR containing multi-value arrays', function () {
+    $a = TestModel::factory(['name' => 'Alice', 'age' => 20])->create();
+    $b = TestModel::factory(['name' => 'Bob', 'age' => 21])->create();
+    $c = TestModel::factory(['name' => 'Charlie', 'age' => 22])->create();
+
+    $filters = [
+        'filter' => [
+            '$or' => [
+                ['name' => ['Alice', 'Bob']], // numeric array → in
+                ['age' => ['$eq' => 22]],
+            ],
+        ],
+    ];
+
+    makeRequest('http://localhost?'.http_build_query($filters));
+
+    $index = TestModel::index()->get();
+
+    expect($index->pluck('name')->toArray())->toBe(['Alice', 'Bob', 'Charlie']);
 });

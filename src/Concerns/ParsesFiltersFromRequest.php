@@ -6,11 +6,9 @@ use Illuminate\Http\Request;
 
 trait ParsesFiltersFromRequest
 {
-
     /**
      * Get filters from the request.
      *
-     * @param \Illuminate\Http\Request $request
      * @return array
      */
     protected function getFiltersFromRequest(Request $request)
@@ -22,13 +20,12 @@ trait ParsesFiltersFromRequest
         return $this->parseFilters($request->get('filter'));
     }
 
-
-
     /**
      * Parse the filters from the request.
      *
-     * @param mixed $filterNode
+     * @param  mixed  $filterNode
      * @return array
+     *
      * @throws \InvalidArgumentException
      */
     protected function parseFilters($filterNode)
@@ -51,38 +48,41 @@ trait ParsesFiltersFromRequest
         return $filters;
     }
 
-
     /**
      * Parse a filter condition.
      *
-     * @param string $field
-     * @param mixed $value
+     * @param  string  $field
+     * @param  mixed  $value
      * @return array
+     *
      * @throws \InvalidArgumentException
      */
     protected function parseCondition($field, $value)
     {
-
-
-        // prepare comma separated values as an array for the $in operator
+        // handle comma-separated string values
         if (is_string($value) && str_contains($value, ',')) {
-            $array['$in'] = explode(',', $value);
-            $value = $array;
+            $value = explode(',', $value);
         }
 
-        if (! is_array($value)) {
-            return [$field, '=', $value];
+        // if it's now a numeric-indexed array, treat as "in"
+        if (is_array($value) && array_keys($value) === range(0, count($value) - 1)) {
+            return [$field, 'in', $value];
         }
 
-        foreach ($value as $operator => $val) {
-            return [$field, $this->transformOperator($operator), $this->transformValue($operator, $val ?? '')];
+        // if it's an associative array like ['operator' => 'val']
+        if (is_array($value)) {
+            foreach ($value as $operator => $val) {
+                return [$field, $this->transformOperator($operator), $this->transformValue($operator, $val ?? '')];
+            }
         }
+
+        // simple scalar value
+        return [$field, '=', $value];
     }
 
     /**
      * Transform a filter operator to a query operator.
      *
-     * @param string $operator
      * @return string
      */
     protected function transformOperator(string $operator)
@@ -110,8 +110,6 @@ trait ParsesFiltersFromRequest
     /**
      * Transform a filter value based on the operator.
      *
-     * @param string $operator
-     * @param string|array $value
      * @return string|array
      */
     protected function transformValue(string $operator, string|array $value)
@@ -121,7 +119,7 @@ trait ParsesFiltersFromRequest
             '$notContains' => "%{$value}%",
             '$startsWith' => "{$value}%",
             '$endsWith' => "%{$value}",
-                // '$between' => array_map('intval', (array) $value), // TODO: do we have to cast other types?
+            // '$between' => array_map('intval', (array) $value), // TODO: do we have to cast other types?
             default => $value,
         };
     }
