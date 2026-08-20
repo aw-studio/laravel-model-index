@@ -138,6 +138,7 @@ trait FilterIndex
 
             match ($operator) {
                 '=', '!=', '>', '>=', '<', '<=', 'like', 'not like' => $this->applyBasicCondition($query, $field, $operator, $value, $logicalOperator),
+                'ci =', 'ci !=', 'ci like', 'ci not like' => $this->applyCaseInsensitiveCondition($query, $field, $operator, $value, $logicalOperator),
                 'in' => $this->applyWhereInCondition($query, $field, $value, $logicalOperator),
                 'not in' => $this->applyWhereNotInCondition($query, $field, $value, $logicalOperator),
                 'between' => $this->applyWhereBetweenCondition($query, $field, $value, $logicalOperator),
@@ -194,6 +195,42 @@ trait FilterIndex
     protected function applyBasicCondition(Builder $query, $field, $operator, $value, $logicalOperator)
     {
         $query->where($field, $operator, $value, $logicalOperator === '$or' ? 'or' : 'and');
+    }
+
+    /**
+     * Apply a case-insensitive condition to the query.
+     *
+     * Implemented as `LOWER(column) <op> LOWER(?)` rather than PostgreSQL's
+     * `ILIKE` so it stays portable across MySQL, PostgreSQL and SQLite. Note
+     * that MySQL's default collation already compares case-insensitively, so
+     * these operators only differ from their case-sensitive counterparts on
+     * drivers that use a binary collation.
+     *
+     * @param  string  $field
+     * @param  string  $operator
+     * @param  mixed  $value
+     * @param  string  $logicalOperator
+     * @return void
+     */
+    protected function applyCaseInsensitiveCondition(Builder $query, $field, $operator, $value, $logicalOperator)
+    {
+        $sqlOperator = match ($operator) {
+            'ci =' => '=',
+            'ci !=' => '!=',
+            'ci like' => 'like',
+            'ci not like' => 'not like',
+        };
+
+        // The field is already restricted to the filterable allowlist, but the
+        // identifier still goes through the grammar's wrapping rather than
+        // being interpolated into the raw expression directly.
+        $wrapped = $query->getQuery()->getGrammar()->wrap($field);
+
+        $query->whereRaw(
+            "lower({$wrapped}) {$sqlOperator} lower(?)",
+            [$value],
+            $logicalOperator === '$or' ? 'or' : 'and'
+        );
     }
 
     /**
