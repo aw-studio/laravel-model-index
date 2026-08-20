@@ -8,6 +8,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+  # Dependencies move even when this code does not. A weekly run surfaces
+  # ecosystem drift - a new security advisory, a transitive break - while it is
+  # still cheap to fix, rather than on the day someone happens to push.
+  schedule:
+    - cron: '0 6 * * 1'
 
 # A push to a branch with an open PR fires both events. Grouping on the branch
 # name - head_ref for a PR, ref_name for a push - collapses them into one run,
@@ -76,6 +81,28 @@ jobs:
       # that shipped for months existed precisely because nothing ran this.
       - name: Static analysis
         run: composer analyse
+
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          # pcov rather than xdebug: much faster, and line coverage is all that
+          # is needed here.
+          coverage: pcov
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      # Reports only. There is no threshold to argue about yet - the point is
+      # that the number is visible rather than assumed.
+      - name: Coverage
+        run: composer test:coverage
 
   style:
     runs-on: ubuntu-latest

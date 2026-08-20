@@ -73,7 +73,11 @@
       "@clear",
       "@php vendor/bin/pest"
     ],
-    "analyse": "@php vendor/bin/phpstan analyse --memory-limit=512M"
+    "analyse": "@php vendor/bin/phpstan analyse --memory-limit=512M",
+    "test:coverage": [
+      "@clear",
+      "@php vendor/bin/pest --coverage"
+    ]
   },
   "extra": {
     "laravel": {
