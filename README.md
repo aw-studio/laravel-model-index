@@ -449,6 +449,13 @@ opt out than opt in — but the shipped defaults are the safe ones.
 [`@aw-studio/nuxt-laravel`](https://github.com/aw-studio/nuxt-laravel) provides
 `useLaravelIndex`, which serializes exactly the query-string shape documented here.
 
+| This package | Client |
+| --- | --- |
+| `1.x` | `@aw-studio/nuxt-laravel` `1.x` |
+
+The two are released as a pair. Because the coupling is an untyped query string,
+mixing majors is not supported.
+
 The two packages are coupled **only by the query string** — there is no generated client
 and no shared schema. An operator that exists on one side but not the other fails at
 runtime, so the operator table above and the one in the client's README must be changed

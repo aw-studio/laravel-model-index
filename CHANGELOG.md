@@ -2,9 +2,28 @@
 
 All notable changes to `aw-studio/laravel-model-index` are documented here.
 
-## Unreleased
+## 1.0.0
+
+First release with a stability commitment. See [UPGRADE.md](UPGRADE.md) for
+migration steps.
 
 ### Behaviour change
+
+- **`get()` always returns a Collection; `paginate()` always returns a
+  paginator.** `get()` previously returned a paginator when the request happened
+  to carry `page` or `perPage`, so the caller's query string decided the response
+  envelope and every consumer had to handle both shapes. Whether an endpoint
+  paginates is now the endpoint's decision. Also fixes `paginate()` with no
+  arguments returning the builder itself.
+
+- **Sorting and searching deny by default.** `sortable` and `searchable` default
+  to `[]` rather than `['*']`, matching filtering. Set them to `['*']` in
+  `config/model-index.php` to restore the previous behaviour. `max_per_page`
+  defaults to 100 rather than unbounded.
+
+- **`IndexQueryBuilder::defaultSortable()` and `defaultSearchable()` are
+  removed** in favour of `config/model-index.php`. The static properties they
+  wrote to persisted across requests under Octane.
 
 - **Unknown filter operators now throw instead of silently becoming `=`.**
   `transformOperator()` previously fell back to equality for any operator it did
@@ -77,6 +96,16 @@ All notable changes to `aw-studio/laravel-model-index` are documented here.
   call `sortable([...])` or opt into `defaultSortable([])` during boot.
 - Laravel 13 support: `illuminate/database` and `illuminate/http` now allow
   `^11.0|^12.0|^13.0`. Purely additive — Laravel 11 and 12 remain supported.
+- **Relation filtering.** `filterable(['user.name'])` resolves through
+  `whereHas`, including nested relations, so a custom callback is no longer
+  needed for every relation field. A dotted field is only treated as a relation
+  when its first segment is one, so filtering on a manually joined
+  `table.column` is unaffected.
+- **Cursor pagination** via `cursorPaginate()`: keyset-based, with no `COUNT`
+  over the full result set and no `OFFSET` degradation on deep pages.
+- A publishable config file (`per_page`, `max_per_page`, `sortable`,
+  `searchable`) and a `ModelIndexServiceProvider`.
+- `cursorName()` for renaming the cursor query parameter.
 
 ### Fixed
 
