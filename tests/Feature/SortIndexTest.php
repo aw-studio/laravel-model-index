@@ -1,5 +1,6 @@
 <?php
 
+use AwStudio\ModelIndex\IndexQueryBuilder;
 use Workbench\App\Models\TestModel;
 use Illuminate\Database\Eloquent\Factories\Sequence;
 
@@ -69,4 +70,65 @@ test('it sorts by multiple fields', function () {
 
     expect($firstItem->age)->toBe(24);
     expect($firstItem->created_at->toDateString())->toBe(now()->subDays(9)->toDateString());
+});
+
+/*
+|--------------------------------------------------------------------------
+| Opt-in strict sorting
+|--------------------------------------------------------------------------
+*/
+
+test('it allows sorting by any column by default', function () {
+    TestModel::factory()->count(3)->create();
+
+    makeRequest('http://localhost?sort=age');
+
+    expect(fn () => TestModel::index()->get())->not->toThrow(InvalidArgumentException::class);
+});
+
+test('it can deny sorting by default via defaultSortable', function () {
+    TestModel::factory()->count(3)->create();
+
+    makeRequest('http://localhost?sort=age');
+
+    IndexQueryBuilder::defaultSortable([]);
+
+    try {
+        expect(fn () => TestModel::index()->get())
+            ->toThrow(InvalidArgumentException::class, 'Sorting by age is not allowed.');
+    } finally {
+        IndexQueryBuilder::defaultSortable(['*']);
+    }
+});
+
+test('an explicit sortable call still overrides a strict default', function () {
+    TestModel::factory()
+        ->count(3)
+        ->sequence(fn ($sequence) => ['age' => 10 + $sequence->index])
+        ->create();
+
+    makeRequest('http://localhost?sort=age');
+
+    IndexQueryBuilder::defaultSortable([]);
+
+    try {
+        expect(TestModel::index()->sortable(['age'])->get()->first()->age)->toBe(10);
+    } finally {
+        IndexQueryBuilder::defaultSortable(['*']);
+    }
+});
+
+test('a strict default still rejects columns outside an explicit allowlist', function () {
+    TestModel::factory()->count(3)->create();
+
+    makeRequest('http://localhost?sort=name');
+
+    IndexQueryBuilder::defaultSortable([]);
+
+    try {
+        expect(fn () => TestModel::index()->sortable(['age'])->get())
+            ->toThrow(InvalidArgumentException::class, 'Sorting by name is not allowed.');
+    } finally {
+        IndexQueryBuilder::defaultSortable(['*']);
+    }
 });

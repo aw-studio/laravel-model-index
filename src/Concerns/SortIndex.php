@@ -6,7 +6,28 @@ use Illuminate\Http\Request;
 
 trait SortIndex
 {
-    protected $sortableFields = ['*'];
+    /**
+     * The fields that may be sorted by on this builder instance.
+     *
+     * `null` means "not explicitly set", in which case the application-wide
+     * default from `defaultSortable()` applies.
+     *
+     * @var array|null
+     */
+    protected $sortableFields = null;
+
+    /**
+     * The application-wide default sortable fields.
+     *
+     * Defaults to `['*']` — allow every column — which is kept for backwards
+     * compatibility. Public index endpoints should opt into a strict default
+     * by calling `IndexQueryBuilder::defaultSortable([])` in a service
+     * provider, so that any endpoint which forgets to call `sortable([...])`
+     * rejects sorting instead of silently ordering by an arbitrary column.
+     *
+     * @var array
+     */
+    protected static $defaultSortableFields = ['*'];
 
     /**
      * @var array Custom sorting callbacks.
@@ -18,6 +39,30 @@ trait SortIndex
         $this->sortableFields = $fields;
 
         return $this;
+    }
+
+    /**
+     * Set the application-wide default sortable fields.
+     *
+     * Call this once during boot. Pass `[]` to deny sorting unless an index
+     * explicitly opts in via `sortable([...])`, or `['*']` to restore the
+     * permissive default.
+     *
+     * @return void
+     */
+    public static function defaultSortable(array $fields)
+    {
+        static::$defaultSortableFields = $fields;
+    }
+
+    /**
+     * Get the list of sortable fields.
+     *
+     * @return array
+     */
+    public function getSortableFields()
+    {
+        return $this->sortableFields ?? static::$defaultSortableFields;
     }
 
     /**
@@ -51,7 +96,9 @@ trait SortIndex
 
             $sortField = $this->clean($sortField);
 
-            if ($this->sortableFields != ['*'] && ! in_array($sortField, $this->sortableFields)) {
+            $sortableFields = $this->getSortableFields();
+
+            if ($sortableFields != ['*'] && ! in_array($sortField, $sortableFields)) {
                 throw new \InvalidArgumentException("Sorting by {$sortField} is not allowed.");
             }
 
