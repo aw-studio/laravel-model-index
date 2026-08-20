@@ -2,12 +2,18 @@
   "name": "aw-studio/laravel-model-index",
   "description": "Filterable, sortable, searchable index listing for laravel models",
   "keywords": [
-    "aw-studio",
     "laravel",
-    "model-index",
-    "query-builder"
+    "eloquent",
+    "query-builder",
+    "filtering",
+    "sorting",
+    "search",
+    "pagination",
+    "api",
+    "index",
+    "rest"
   ],
-  "homepage": "https://github.com/aw-studio/model-index",
+  "homepage": "https://github.com/aw-studio/laravel-model-index",
   "license": "MIT",
   "authors": [
     {
@@ -73,5 +79,9 @@
         "AwStudio\\ModelIndex\\ModelIndexServiceProvider"
       ]
     }
+  },
+  "support": {
+    "issues": "https://github.com/aw-studio/laravel-model-index/issues",
+    "source": "https://github.com/aw-studio/laravel-model-index"
   }
 }
