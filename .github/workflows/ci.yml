@@ -1,12 +1,20 @@
 name: ci
 
 on:
+  # Every branch, so a feature branch is verified before it becomes a PR.
   push:
-    branches:
-      - main
+  # Still needed for pull requests from forks, whose pushes do not run here.
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+
+# A push to a branch with an open PR fires both events. Grouping on the branch
+# name - head_ref for a PR, ref_name for a push - collapses them into one run,
+# and supersedes an in-flight run when new commits land.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   test:
