@@ -5,6 +5,8 @@ use Workbench\App\Models\TestModel;
 use Workbench\App\Models\User;
 
 test('It searches the records columns', function () {
+    config()->set('model-index.searchable', ['*']);
+
     TestModel::factory()->count(5)->create();
     TestModel::factory(['name' => 'ustupid'])->create();
 
@@ -14,6 +16,8 @@ test('It searches the records columns', function () {
 });
 
 test('It searches all columns', function () {
+    config()->set('model-index.searchable', ['*']);
+
     TestModel::factory()->count(5)->create();
     TestModel::factory(['age' => 10000])->create();
 
@@ -23,6 +27,8 @@ test('It searches all columns', function () {
 });
 
 test('It can use custom search callbacks', function () {
+    config()->set('model-index.searchable', ['*']);
+
     TestModel::factory(['name' => 'John Doe'])->create();
     TestModel::factory(['name' => 'Jane Smith'])->create();
     TestModel::factory(['name' => 'Bob Johnson'])->create();
@@ -152,7 +158,9 @@ test('a custom search callback is merged into the searchable set', function () {
 |--------------------------------------------------------------------------
 */
 
-test('the default searchable set is every column in the table', function () {
+test('the wildcard searchable set is every column in the table', function () {
+    config()->set('model-index.searchable', ['*']);
+
     // Characterization test, NOT an endorsement. With the shipped `['*']`
     // default the builder introspects the schema and emits a LIKE against every
     // column — on a users table that includes password and remember_token, and
@@ -171,7 +179,9 @@ test('the default searchable set is every column in the table', function () {
     }
 });
 
-test('an explicit searchable list narrows the permissive default', function () {
+test('an explicit searchable list narrows the wildcard', function () {
+    config()->set('model-index.searchable', ['*']);
+
     TestModel::factory(['name' => 'nope', 'color' => 'Zaphod'])->create();
 
     makeRequest('http://localhost?search=Zaphod');
@@ -193,6 +203,8 @@ test('an explicit searchable list narrows the permissive default', function () {
 */
 
 test('it excludes hidden columns from the wildcard expansion', function () {
+    config()->set('model-index.searchable', ['*']);
+
     // `remember_token` rather than `password` because the User model casts
     // password to 'hashed', so the literal never reaches the column.
     User::forceCreate([
@@ -210,6 +222,8 @@ test('it excludes hidden columns from the wildcard expansion', function () {
 });
 
 test('it does not reference hidden columns in the generated sql', function () {
+    config()->set('model-index.searchable', ['*']);
+
     $request = makeRequest('http://localhost?search=anything');
     $builder = new IndexQueryBuilder(User::query(), $request);
     $builder->searchFromRequest($request);
@@ -245,12 +259,10 @@ test('an explicitly listed column is searched even if hidden', function () {
 |--------------------------------------------------------------------------
 */
 
-test('it can deny searching by default via config', function () {
+test('it denies searching by default', function () {
     TestModel::factory(['name' => 'Zaphod'])->create();
 
     makeRequest('http://localhost?search=Zaphod');
-
-    config()->set('model-index.searchable', []);
 
     expect(fn () => TestModel::index()->get())
         ->toThrow(InvalidArgumentException::class, 'Searching is not allowed on this index.');

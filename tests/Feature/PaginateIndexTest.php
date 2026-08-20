@@ -25,8 +25,20 @@ test('It paginates the index results if page is set', function () {
 |--------------------------------------------------------------------------
 */
 
-test('it leaves perPage unbounded by default', function () {
+test('it clamps perPage to the configured default ceiling', function () {
     TestModel::factory()->count(20)->create();
+
+    makeRequest('http://localhost?perPage=1000');
+
+    // The shipped default ceiling is 100; an unbounded page size is both a
+    // denial-of-service lever and a bulk-extraction one.
+    expect(TestModel::index()->paginate()->perPage())->toBe(100);
+});
+
+test('it can be left unbounded via config', function () {
+    TestModel::factory()->count(20)->create();
+
+    config()->set('model-index.max_per_page', null);
 
     makeRequest('http://localhost?perPage=1000');
 
@@ -89,7 +101,7 @@ test('get still applies filters, sorting and search', function () {
 
     makeRequest('http://localhost?filter[age][$gte]=18&sort=-age&perPage=1');
 
-    $result = TestModel::index()->get();
+    $result = TestModel::index()->sortable(['age'])->get();
 
     expect($result->count())->toBe(1);
     expect($result->first()->name)->toBe('Alpha');
@@ -143,11 +155,14 @@ test('paginate honours the requested page', function () {
 |--------------------------------------------------------------------------
 */
 
-test('it publishes a usable default configuration', function () {
+test('it ships safe-by-default configuration', function () {
     expect(config('model-index.per_page'))->toBe(10);
-    expect(config('model-index.max_per_page'))->toBeNull();
-    expect(config('model-index.sortable'))->toBe(['*']);
-    expect(config('model-index.searchable'))->toBe(['*']);
+    expect(config('model-index.max_per_page'))->toBe(100);
+
+    // Deny by default, matching filtering. An index must declare what it
+    // exposes rather than exposing everything until told otherwise.
+    expect(config('model-index.sortable'))->toBe([]);
+    expect(config('model-index.searchable'))->toBe([]);
 });
 
 test('it takes the default page size from config', function () {

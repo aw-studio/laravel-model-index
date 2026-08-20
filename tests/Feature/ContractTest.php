@@ -22,6 +22,12 @@ use Workbench\App\Models\TestModel;
 */
 
 beforeEach(function () {
+    // These tests are about the query string parsing into the intended query,
+    // not about authorization, so both allowlists are opened up. Real endpoints
+    // must declare theirs - see SortIndexTest / SearchIndexTest.
+    config()->set('model-index.sortable', ['*']);
+    config()->set('model-index.searchable', ['*']);
+
     // Three rows chosen so every case below has a distinct expected result.
     TestModel::factory(['name' => 'John', 'age' => 20, 'title' => 'S', 'color' => 'red'])->create();
     TestModel::factory(['name' => 'Paul', 'age' => 40, 'title' => 'M', 'color' => null])->create();

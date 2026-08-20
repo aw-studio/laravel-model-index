@@ -57,6 +57,22 @@ installed at all.
 composer require aw-studio/laravel-model-index
 ```
 
+Optionally publish the config:
+
+```sh
+php artisan vendor:publish --tag=model-index-config
+```
+
+```php
+// config/model-index.php
+return [
+    'per_page' => 10,
+    'max_per_page' => 100,   // null to disable the ceiling
+    'sortable' => [],        // ['*'] to allow every column
+    'searchable' => [],      // ['*'] to search every column
+];
+```
+
 Add the trait to any model you want an index endpoint for:
 
 ```php
@@ -87,16 +103,14 @@ worth knowing which you get:
 
 | Call | Returns |
 | --- | --- |
-| `get()` **with** `page` or `perPage` in the request | `LengthAwarePaginator` |
-| `get()` **without** either | `Illuminate\Support\Collection` |
-| `paginate($perPage)` | `LengthAwarePaginator` |
+| `get()` | `Illuminate\Support\Collection`, always |
+| `paginate($perPage = null)` | `LengthAwarePaginator`, always |
 | `first()` | Model or `null` |
 | `count()` | `int` |
 
-So the same endpoint returns a bare collection for `/products` and a paginated
-envelope for `/products?page=1`. If your client always expects the paginated shape
-(the `@aw-studio/nuxt-laravel` client does), call `paginate()` explicitly or always
-send `perPage`.
+Return types do not depend on the request. Whether an endpoint paginates is the
+endpoint's decision; which page and how large is the caller's. `get()` still
+applies filters, sorting and search — it just ignores `page` and `perPage`.
 
 Wrap results in an API Resource with `useResource()`:
 
@@ -255,11 +269,7 @@ GET /products?sort=name:desc     # descending, alternative syntax
 GET /products?sort=name,-price   # multiple columns
 ```
 
-> [!WARNING]
-> **Sorting allows every column by default** (`['*']`), unlike filtering. Ordering by a
-> column the client was never meant to see is an inference oracle: sort by a secret,
-> observe the row order, learn about the secret. Declare an allowlist on every public
-> endpoint.
+**Sorting is deny-by-default.** Declare what an index may be ordered by:
 
 ```php
 Product::index()->sortable(['name', 'price', 'created_at'])->get();
@@ -267,18 +277,9 @@ Product::index()->sortable(['name', 'price', 'created_at'])->get();
 
 Sorting by a field outside the allowlist throws an `InvalidArgumentException`.
 
-To make strictness the default across an application, opt in during boot. Endpoints
-that never call `sortable()` then reject sorting outright instead of accepting any
-column:
-
-```php
-use AwStudio\ModelIndex\IndexQueryBuilder;
-
-// e.g. AppServiceProvider::boot()
-IndexQueryBuilder::defaultSortable([]);
-```
-
-The shipped default stays `['*']` for backwards compatibility, so this is opt-in.
+Ordering by a column the client was never meant to see is an inference oracle: sort
+by a secret, observe the row order, learn about the secret. To opt out of the safe
+default application-wide, set `sortable` to `['*']` in `config/model-index.php`.
 
 Custom sort keys work like custom filters, and receive the direction:
 
@@ -294,13 +295,7 @@ Product::index()
 GET /products?search=shirt
 ```
 
-> [!IMPORTANT]
-> **Search matches every column by default** (`['*']`). The builder introspects
-> the table and emits `LIKE` against each column. Columns listed in the model's
-> `$hidden` array are excluded automatically — so `password` and
-> `remember_token` are never searched — but anything sensitive that is *not*
-> hidden still is. Declare searchable columns explicitly on any endpoint
-> reachable by untrusted callers.
+**Searching is deny-by-default.** Declare what an index may be searched on:
 
 ```php
 User::index()->searchable(['name', 'email'])->get();
@@ -320,23 +315,17 @@ Product::index()
     ->get();
 ```
 
-#### Requiring an explicit searchable list
+#### The `['*']` wildcard
 
-To make search opt-in across an application, set a strict default during boot.
-Indexes that never call `searchable()` then reject `?search=` instead of falling
-back to every column:
-
-```php
-use AwStudio\ModelIndex\IndexQueryBuilder;
-
-// e.g. AppServiceProvider::boot()
-IndexQueryBuilder::defaultSearchable([]);
-```
+Setting `searchable` to `['*']` — per index, or as the config default — expands to
+every column in the table. Attributes in the model's `$hidden` array are always
+excluded, so `password` and `remember_token` are never matched, but anything
+sensitive that is *not* hidden is. Prefer an explicit list.
 
 Searching an index whose searchable set is empty throws an
 `InvalidArgumentException` rather than silently returning the unfiltered list.
-Registering a custom search callback is enough to make an index searchable
-again, even with an otherwise empty list.
+Registering a custom search callback is enough to make an index searchable, even
+with an otherwise empty list.
 
 ## Pagination
 
@@ -351,17 +340,16 @@ Default page size is 10. Rename the page parameter with `pageName()`:
 Product::index()->pageName('p')->get();   // GET /products?p=2
 ```
 
-> [!WARNING]
-> **`perPage` is unbounded by default.** `?perPage=1000000` will try to return the whole
-> table — both a denial-of-service lever and a bulk-extraction one. Set a ceiling on any
-> public endpoint.
+`perPage` is capped at **100** by default. Requests above the ceiling are clamped to
+it, and a `perPage` that is not a positive integer (`0`, `-5`, `abc`) falls back to
+the default page size. Override per index or in config:
 
 ```php
-Product::index()->maxPerPage(100)->get();
+Product::index()->maxPerPage(250)->paginate();
 ```
 
-Requests above the ceiling are clamped to it. A `perPage` that is not a positive integer
-(`0`, `-5`, `abc`) falls back to the default page size.
+Set `max_per_page` to `null` to remove the ceiling entirely — but note that an
+unbounded page size is both a denial-of-service lever and a bulk-extraction one.
 
 ## Builder reference
 
@@ -394,26 +382,27 @@ of the proxied call.
 
 ## Securing a public endpoint
 
-The three allowlists have **different defaults**, which is the single most common source
-of accidental exposure:
+All three allowlists deny by default, and page size is capped:
 
-| Concern | Default | Safe? |
+| Concern | Default | |
 | --- | --- | --- |
-| Filtering | `[]` — deny all | ✅ safe by default |
-| Sorting | `['*']` — allow all | ⚠️ must be restricted |
-| Searching | `['*']` — all columns except `$hidden` | ⚠️ should be restricted |
-| `perPage` | unbounded | ⚠️ must be capped |
+| Filtering | `[]` — deny all | ✅ |
+| Sorting | `[]` — deny all | ✅ |
+| Searching | `[]` — deny all | ✅ |
+| `perPage` | capped at 100 | ✅ |
 
-A checklist for any index reachable by untrusted callers:
+So an index exposes nothing until you say what it exposes:
 
 ```php
 Model::index()
-    ->filterable([...])   // required anyway
-    ->sortable([...])     // otherwise: any column
-    ->searchable([...])   // otherwise: every column, including secrets
-    ->maxPerPage(100)     // otherwise: unbounded
-    ->get();
+    ->filterable(['name', 'status'])
+    ->sortable(['name', 'created_at'])
+    ->searchable(['name', 'sku'])
+    ->paginate();
 ```
+
+Each list can be relaxed globally in `config/model-index.php` if you would rather
+opt out than opt in — but the shipped defaults are the safe ones.
 
 ## Frontend client
 
