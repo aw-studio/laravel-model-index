@@ -86,19 +86,15 @@ test('it allows sorting by any column by default', function () {
     expect(fn () => TestModel::index()->get())->not->toThrow(InvalidArgumentException::class);
 });
 
-test('it can deny sorting by default via defaultSortable', function () {
+test('it can deny sorting by default via config', function () {
     TestModel::factory()->count(3)->create();
 
     makeRequest('http://localhost?sort=age');
 
-    IndexQueryBuilder::defaultSortable([]);
+    config()->set('model-index.sortable', []);
 
-    try {
-        expect(fn () => TestModel::index()->get())
-            ->toThrow(InvalidArgumentException::class, 'Sorting by age is not allowed.');
-    } finally {
-        IndexQueryBuilder::defaultSortable(['*']);
-    }
+    expect(fn () => TestModel::index()->get())
+        ->toThrow(InvalidArgumentException::class, 'Sorting by age is not allowed.');
 });
 
 test('an explicit sortable call still overrides a strict default', function () {
@@ -109,13 +105,9 @@ test('an explicit sortable call still overrides a strict default', function () {
 
     makeRequest('http://localhost?sort=age');
 
-    IndexQueryBuilder::defaultSortable([]);
+    config()->set('model-index.sortable', []);
 
-    try {
-        expect(TestModel::index()->sortable(['age'])->get()->first()->age)->toBe(10);
-    } finally {
-        IndexQueryBuilder::defaultSortable(['*']);
-    }
+    expect(TestModel::index()->sortable(['age'])->get()->first()->age)->toBe(10);
 });
 
 test('a strict default still rejects columns outside an explicit allowlist', function () {
@@ -123,12 +115,8 @@ test('a strict default still rejects columns outside an explicit allowlist', fun
 
     makeRequest('http://localhost?sort=name');
 
-    IndexQueryBuilder::defaultSortable([]);
+    config()->set('model-index.sortable', []);
 
-    try {
-        expect(fn () => TestModel::index()->sortable(['age'])->get())
-            ->toThrow(InvalidArgumentException::class, 'Sorting by name is not allowed.');
-    } finally {
-        IndexQueryBuilder::defaultSortable(['*']);
-    }
+    expect(fn () => TestModel::index()->sortable(['age'])->get())
+        ->toThrow(InvalidArgumentException::class, 'Sorting by name is not allowed.');
 });

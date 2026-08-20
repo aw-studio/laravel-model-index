@@ -9,25 +9,12 @@ trait SortIndex
     /**
      * The fields that may be sorted by on this builder instance.
      *
-     * `null` means "not explicitly set", in which case the application-wide
-     * default from `defaultSortable()` applies.
+     * `null` means "not explicitly set", in which case the `model-index.sortable`
+     * config value applies.
      *
      * @var array|null
      */
     protected $sortableFields = null;
-
-    /**
-     * The application-wide default sortable fields.
-     *
-     * Defaults to `['*']` — allow every column — which is kept for backwards
-     * compatibility. Public index endpoints should opt into a strict default
-     * by calling `IndexQueryBuilder::defaultSortable([])` in a service
-     * provider, so that any endpoint which forgets to call `sortable([...])`
-     * rejects sorting instead of silently ordering by an arbitrary column.
-     *
-     * @var array
-     */
-    protected static $defaultSortableFields = ['*'];
 
     /**
      * @var array Custom sorting callbacks.
@@ -42,27 +29,16 @@ trait SortIndex
     }
 
     /**
-     * Set the application-wide default sortable fields.
-     *
-     * Call this once during boot. Pass `[]` to deny sorting unless an index
-     * explicitly opts in via `sortable([...])`, or `['*']` to restore the
-     * permissive default.
-     *
-     * @return void
-     */
-    public static function defaultSortable(array $fields)
-    {
-        static::$defaultSortableFields = $fields;
-    }
-
-    /**
      * Get the list of sortable fields.
+     *
+     * Falls back to the `model-index.sortable` config value when this index has
+     * not declared its own list.
      *
      * @return array
      */
     public function getSortableFields()
     {
-        return $this->sortableFields ?? static::$defaultSortableFields;
+        return $this->sortableFields ?? config('model-index.sortable', ['*']);
     }
 
     /**

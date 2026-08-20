@@ -145,7 +145,7 @@ test('the full client request shape is accepted end to end', function () {
     // The exact string test/contract.test.ts asserts prepareQueryParams emits.
     makeRequest('http://localhost?page=1&perPage=25&sort=-created_at&search=joh&filter[name][$containsi]=joh');
 
-    $result = TestModel::index()->get();
+    $result = TestModel::index()->paginate();
 
     expect($result->pluck('name')->toArray())->toBe(['John']);
     expect($result->perPage())->toBe(25);

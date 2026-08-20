@@ -11,7 +11,14 @@ trait PaginateIndex
 {
     protected $pageName = 'page';
 
-    protected $perPage = 10;
+    /**
+     * Page size for this builder instance.
+     *
+     * `null` defers to the `model-index.per_page` config value.
+     *
+     * @var int|null
+     */
+    protected $perPage = null;
 
     /**
      * The maximum page size a request may ask for.
@@ -24,6 +31,24 @@ trait PaginateIndex
      * @var int|null
      */
     protected $maxPerPage = null;
+
+    /**
+     * Get the default page size.
+     */
+    protected function defaultPerPage(): int
+    {
+        return $this->perPage ?? (int) config('model-index.per_page', 10);
+    }
+
+    /**
+     * Get the page-size ceiling, or null when unbounded.
+     */
+    protected function resolveMaxPerPage(): ?int
+    {
+        $max = $this->maxPerPage ?? config('model-index.max_per_page');
+
+        return $max === null ? null : (int) $max;
+    }
 
     public function pageName(string $pageName)
     {
@@ -59,23 +84,28 @@ trait PaginateIndex
         $perPage = filter_var($perPage, FILTER_VALIDATE_INT);
 
         if ($perPage === false || $perPage < 1) {
-            $perPage = $this->perPage;
+            $perPage = $this->defaultPerPage();
         }
 
-        if ($this->maxPerPage !== null) {
-            $perPage = min($perPage, $this->maxPerPage);
+        $max = $this->resolveMaxPerPage();
+
+        if ($max !== null) {
+            $perPage = min($perPage, $max);
         }
 
         return $perPage;
     }
 
+    /**
+     * Paginate the query, taking the page size from the argument, then the
+     * request, then the configured default.
+     *
+     * @param  int|null  $perPage
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
     public function paginateFromRequest(Request $request, $perPage = null)
     {
-        if (($request->has('page') || $request->has('perPage')) == false && $perPage === null) {
-            return $this;
-        }
-
-        $perPage = $this->normalizePerPage($perPage ?? $request->get('perPage', $this->perPage));
+        $perPage = $this->normalizePerPage($perPage ?? $request->get('perPage', $this->defaultPerPage()));
 
         return $this->query()
             ->paginate($perPage, ['*'], $this->pageName)

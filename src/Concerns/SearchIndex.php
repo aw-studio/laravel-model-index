@@ -9,23 +9,12 @@ trait SearchIndex
     /**
      * The fields searched by `?search=` on this builder instance.
      *
-     * `null` means "not explicitly set", in which case the application-wide
-     * default from `defaultSearchable()` applies.
+     * `null` means "not explicitly set", in which case the
+     * `model-index.searchable` config value applies.
      *
      * @var array|null
      */
     protected $searchableFields = null;
-
-    /**
-     * The application-wide default searchable fields.
-     *
-     * Defaults to `['*']` — expand to the table's columns — which is kept for
-     * backwards compatibility. Apps that want search to be opt-in per index can
-     * call `IndexQueryBuilder::defaultSearchable([])` in a service provider.
-     *
-     * @var array
-     */
-    protected static $defaultSearchableFields = ['*'];
 
     /**
      * @var array Custom search callbacks.
@@ -51,19 +40,6 @@ trait SearchIndex
         $this->searchableFields = $fields;
 
         return $this;
-    }
-
-    /**
-     * Set the application-wide default searchable fields.
-     *
-     * Call this once during boot. Pass `[]` to require every index to opt in
-     * via `searchable([...])`, or `['*']` to restore the permissive default.
-     *
-     * @return void
-     */
-    public static function defaultSearchable(array $fields)
-    {
-        static::$defaultSearchableFields = $fields;
     }
 
     /**
@@ -124,7 +100,7 @@ trait SearchIndex
      */
     protected function configuredSearchableFields(): array
     {
-        return $this->searchableFields ?? static::$defaultSearchableFields;
+        return $this->searchableFields ?? config('model-index.searchable', ['*']);
     }
 
     protected function getSearchableFields(): array

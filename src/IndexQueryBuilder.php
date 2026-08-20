@@ -7,7 +7,6 @@ use AwStudio\ModelIndex\Concerns\SortIndex;
 use AwStudio\ModelIndex\Concerns\FilterIndex;
 use AwStudio\ModelIndex\Concerns\SearchIndex;
 use AwStudio\ModelIndex\Concerns\PaginateIndex;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 
 class IndexQueryBuilder
@@ -46,19 +45,32 @@ class IndexQueryBuilder
      *
      * @return mixed
      */
+    /**
+     * Get the results as a collection.
+     *
+     * Always returns a collection. `page` and `perPage` in the request are
+     * ignored here — call `paginate()` when you want a paginated response.
+     * Whether an endpoint paginates is the endpoint's decision, not the
+     * caller's; letting the query string switch the response envelope meant
+     * every consumer had to handle both shapes.
+     *
+     * @return mixed
+     */
     public function get()
     {
         $this->applyRequestQuery();
 
-        $pagination = $this->paginateFromRequest($this->request);
-
-        if ($pagination instanceof LengthAwarePaginator) {
-            return $this->returnResults($pagination);
-        }
-
         return $this->returnResults($this->query->get());
     }
     
+    /**
+     * Get the results as a length-aware paginator.
+     *
+     * Always paginates, whether or not the request carries `page`/`perPage`.
+     *
+     * @param  int|null  $perPage
+     * @return mixed
+     */
     public function paginate($perPage = null)
     {
         $this->applyRequestQuery();

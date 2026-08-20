@@ -245,19 +245,15 @@ test('an explicitly listed column is searched even if hidden', function () {
 |--------------------------------------------------------------------------
 */
 
-test('it can deny searching by default via defaultSearchable', function () {
+test('it can deny searching by default via config', function () {
     TestModel::factory(['name' => 'Zaphod'])->create();
 
     makeRequest('http://localhost?search=Zaphod');
 
-    IndexQueryBuilder::defaultSearchable([]);
+    config()->set('model-index.searchable', []);
 
-    try {
-        expect(fn () => TestModel::index()->get())
-            ->toThrow(InvalidArgumentException::class, 'Searching is not allowed on this index.');
-    } finally {
-        IndexQueryBuilder::defaultSearchable(['*']);
-    }
+    expect(fn () => TestModel::index()->get())
+        ->toThrow(InvalidArgumentException::class, 'Searching is not allowed on this index.');
 });
 
 test('an explicit searchable call still overrides a strict default', function () {
@@ -266,13 +262,9 @@ test('an explicit searchable call still overrides a strict default', function ()
 
     makeRequest('http://localhost?search=Zaphod');
 
-    IndexQueryBuilder::defaultSearchable([]);
+    config()->set('model-index.searchable', []);
 
-    try {
-        expect(TestModel::index()->searchable(['name'])->get()->count())->toBe(1);
-    } finally {
-        IndexQueryBuilder::defaultSearchable(['*']);
-    }
+    expect(TestModel::index()->searchable(['name'])->get()->count())->toBe(1);
 });
 
 test('a strict default does not affect requests without a search term', function () {
@@ -280,13 +272,9 @@ test('a strict default does not affect requests without a search term', function
 
     makeRequest('http://localhost');
 
-    IndexQueryBuilder::defaultSearchable([]);
+    config()->set('model-index.searchable', []);
 
-    try {
-        expect(TestModel::index()->get()->count())->toBe(3);
-    } finally {
-        IndexQueryBuilder::defaultSearchable(['*']);
-    }
+    expect(TestModel::index()->get()->count())->toBe(3);
 });
 
 test('it throws when searching an index with an empty searchable list', function () {
