@@ -288,6 +288,10 @@ trait FilterIndex
             'ci !=' => '!=',
             'ci like' => 'like',
             'ci not like' => 'not like',
+            // Unreachable via applyCondition(), which only routes the four
+            // tokens above here — but an unhandled match throws a bare
+            // UnhandledMatchError, which says nothing useful to a caller.
+            default => throw new \InvalidArgumentException("Unsupported case-insensitive operator '{$operator}' for field '{$field}'"),
         };
 
         // The field is already restricted to the filterable allowlist, but the

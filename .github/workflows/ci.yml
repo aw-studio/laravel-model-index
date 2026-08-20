@@ -57,6 +57,26 @@ jobs:
       - name: Test
         run: composer test
 
+  analyse:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      # Gating: the package is clean at this level. The wrong @mixin docblock
+      # that shipped for months existed precisely because nothing ran this.
+      - name: Static analysis
+        run: composer analyse
+
   style:
     runs-on: ubuntu-latest
 
