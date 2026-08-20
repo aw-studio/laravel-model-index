@@ -1,5 +1,6 @@
 <?php
 
+use AwStudio\ModelIndex\IndexQueryBuilder;
 use Workbench\App\Models\TestModel;
 use Illuminate\Database\Eloquent\Factories\Sequence;
 
@@ -14,7 +15,7 @@ test('It sorts records in the index listing', function () {
 
     makeRequest('http://localhost?sort=age');
 
-    $index = TestModel::index()->get();
+    $index = TestModel::index()->sortable(['age', 'name'])->get();
 
     expect($index->first()->age)->toBe(10);
 });
@@ -30,7 +31,7 @@ test('It sorts records in the index listing in descending order with colon synta
 
     makeRequest('http://localhost?sort=age:desc');
 
-    $index = TestModel::index()->get();
+    $index = TestModel::index()->sortable(['age', 'name'])->get();
 
     expect($index->first()->age)->toBe(19);
 });
@@ -43,7 +44,7 @@ test('It sorts records in the index listing in descending order with hypen synta
 
     makeRequest('http://localhost?sort=-age');
 
-    $index = TestModel::index()->get();
+    $index = TestModel::index()->sortable(['age', 'name'])->get();
 
     expect($index->first()->age)->toBe(19);
 });
@@ -65,8 +66,57 @@ test('it sorts by multiple fields', function () {
     // the record with age 24 and created_at 9 days ago should be first
     makeRequest('http://localhost?sort=-age,created_at');
 
-    $firstItem = TestModel::index()->get()->first();
+    $firstItem = TestModel::index()->sortable(['age', 'created_at'])->get()->first();
 
     expect($firstItem->age)->toBe(24);
     expect($firstItem->created_at->toDateString())->toBe(now()->subDays(9)->toDateString());
+});
+
+/*
+|--------------------------------------------------------------------------
+| Opt-in strict sorting
+|--------------------------------------------------------------------------
+*/
+
+test('it denies sorting by default', function () {
+    TestModel::factory()->count(3)->create();
+
+    makeRequest('http://localhost?sort=age');
+
+    expect(fn () => TestModel::index()->get())
+        ->toThrow(InvalidArgumentException::class, 'Sorting by age is not allowed.');
+});
+
+test('it can allow sorting by any column via config', function () {
+    TestModel::factory()->count(3)->create();
+
+    makeRequest('http://localhost?sort=age');
+
+    config()->set('model-index.sortable', ['*']);
+
+    expect(fn () => TestModel::index()->get())->not->toThrow(InvalidArgumentException::class);
+});
+
+test('an explicit sortable call still overrides a strict default', function () {
+    TestModel::factory()
+        ->count(3)
+        ->sequence(fn ($sequence) => ['age' => 10 + $sequence->index])
+        ->create();
+
+    makeRequest('http://localhost?sort=age');
+
+    config()->set('model-index.sortable', []);
+
+    expect(TestModel::index()->sortable(['age'])->get()->first()->age)->toBe(10);
+});
+
+test('a strict default still rejects columns outside an explicit allowlist', function () {
+    TestModel::factory()->count(3)->create();
+
+    makeRequest('http://localhost?sort=name');
+
+    config()->set('model-index.sortable', []);
+
+    expect(fn () => TestModel::index()->sortable(['age'])->get())
+        ->toThrow(InvalidArgumentException::class, 'Sorting by name is not allowed.');
 });

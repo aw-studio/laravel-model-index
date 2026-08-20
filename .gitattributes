@@ -10,3 +10,6 @@
 /phpunit.xml        export-ignore
 /tests              export-ignore
 /workbench          export-ignore
+/testbench.yaml     export-ignore
+/phpstan.neon       export-ignore
+/.github            export-ignore

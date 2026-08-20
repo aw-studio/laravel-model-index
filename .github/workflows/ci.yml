@@ -1,0 +1,126 @@
+name: ci
+
+on:
+  # Every branch, so a feature branch is verified before it becomes a PR.
+  push:
+  # Still needed for pull requests from forks, whose pushes do not run here.
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+  # Dependencies move even when this code does not. A weekly run surfaces
+  # ecosystem drift - a new security advisory, a transitive break - while it is
+  # still cheap to fix, rather than on the day someone happens to push.
+  schedule:
+    - cron: '0 6 * * 1'
+
+# A push to a branch with an open PR fires both events. Grouping on the branch
+# name - head_ref for a PR, ref_name for a push - collapses them into one run,
+# and supersedes an in-flight run when new commits land.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # The package declares support for illuminate ^11|^12|^13, so every
+    # supported major is exercised here rather than assumed.
+    #
+    # Laravel 11 is deliberately absent: every v11 release is currently blocked
+    # by Composer's security-advisory policy, so the leg cannot be installed at
+    # all. The constraint is kept for existing consumers who already have a
+    # resolved lock file, but it is not claimed to be tested.
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+        laravel: ['12', '13']
+        exclude:
+          # Laravel 13 requires PHP 8.3+.
+          - php: '8.2'
+            laravel: '13'
+
+    name: test (php ${{ matrix.php }}, laravel ${{ matrix.laravel }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --with "laravel/framework:^${{ matrix.laravel }}.0" --prefer-dist --no-interaction --no-progress
+
+      - name: Report resolved versions
+        run: composer show laravel/framework orchestra/testbench pestphp/pest | grep -E "^(name|versions)" || true
+
+      - name: Test
+        run: composer test
+
+  analyse:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      # Gating: the package is clean at this level. The wrong @mixin docblock
+      # that shipped for months existed precisely because nothing ran this.
+      - name: Static analysis
+        run: composer analyse
+
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          # pcov rather than xdebug: much faster, and line coverage is all that
+          # is needed here.
+          coverage: pcov
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      # Reports only. There is no threshold to argue about yet - the point is
+      # that the number is visible rather than assumed.
+      - name: Coverage
+        run: composer test:coverage
+
+  style:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      # Reports only. The repository is not currently Pint-clean, so this must
+      # not gate the build until that backlog is cleared.
+      - name: Check code style
+        run: vendor/bin/pint --test
+        continue-on-error: true

@@ -1,0 +1,14 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - src
+        # The workbench app is the only place the package's own trait is used,
+        # so without it PHPStan cannot analyse HasIndexQuery in context.
+        - workbench
+
+    # Level 5 is the highest the package currently passes without adding
+    # annotations that would obscure more than they document. Raise it
+    # deliberately rather than suppressing what it finds.
+    level: 5

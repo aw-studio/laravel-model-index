@@ -6,7 +6,15 @@ use Illuminate\Http\Request;
 
 trait SortIndex
 {
-    protected $sortableFields = ['*'];
+    /**
+     * The fields that may be sorted by on this builder instance.
+     *
+     * `null` means "not explicitly set", in which case the `model-index.sortable`
+     * config value applies.
+     *
+     * @var array|null
+     */
+    protected $sortableFields = null;
 
     /**
      * @var array Custom sorting callbacks.
@@ -18,6 +26,19 @@ trait SortIndex
         $this->sortableFields = $fields;
 
         return $this;
+    }
+
+    /**
+     * Get the list of sortable fields.
+     *
+     * Falls back to the `model-index.sortable` config value when this index has
+     * not declared its own list.
+     *
+     * @return array
+     */
+    public function getSortableFields()
+    {
+        return $this->sortableFields ?? config('model-index.sortable', ['*']);
     }
 
     /**
@@ -51,7 +72,9 @@ trait SortIndex
 
             $sortField = $this->clean($sortField);
 
-            if ($this->sortableFields != ['*'] && ! in_array($sortField, $this->sortableFields)) {
+            $sortableFields = $this->getSortableFields();
+
+            if ($sortableFields != ['*'] && ! in_array($sortField, $sortableFields)) {
                 throw new \InvalidArgumentException("Sorting by {$sortField} is not allowed.");
             }
 
