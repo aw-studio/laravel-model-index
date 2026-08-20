@@ -1,0 +1,71 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # The package declares support for illuminate ^11|^12|^13, so every
+    # supported major is exercised here rather than assumed.
+    #
+    # Laravel 11 is deliberately absent: every v11 release is currently blocked
+    # by Composer's security-advisory policy, so the leg cannot be installed at
+    # all. The constraint is kept for existing consumers who already have a
+    # resolved lock file, but it is not claimed to be tested.
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+        laravel: ['12', '13']
+        exclude:
+          # Laravel 13 requires PHP 8.3+.
+          - php: '8.2'
+            laravel: '13'
+
+    name: test (php ${{ matrix.php }}, laravel ${{ matrix.laravel }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --with "laravel/framework:^${{ matrix.laravel }}.0" --prefer-dist --no-interaction --no-progress
+
+      - name: Report resolved versions
+        run: composer show laravel/framework orchestra/testbench pestphp/pest | grep -E "^(name|versions)" || true
+
+      - name: Test
+        run: composer test
+
+  style:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      # Reports only. The repository is not currently Pint-clean, so this must
+      # not gate the build until that backlog is cleared.
+      - name: Check code style
+        run: vendor/bin/pint --test
+        continue-on-error: true
