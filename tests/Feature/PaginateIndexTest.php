@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Workbench\App\Models\TestModel;
@@ -193,4 +194,73 @@ test('an explicit maxPerPage call overrides the configured ceiling', function ()
     makeRequest('http://localhost?perPage=1000');
 
     expect(TestModel::index()->maxPerPage(5)->paginate()->perPage())->toBe(5);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cursor pagination
+|--------------------------------------------------------------------------
+*/
+
+test('it cursor paginates', function () {
+    TestModel::factory()->count(20)->create();
+
+    makeRequest('http://localhost?perPage=5');
+
+    $result = TestModel::index()->cursorPaginate();
+
+    expect($result)->toBeInstanceOf(CursorPaginator::class);
+    expect($result->count())->toBe(5);
+    expect($result->hasMorePages())->toBeTrue();
+});
+
+test('it follows a cursor to the next page', function () {
+    TestModel::factory()
+        ->count(20)
+        ->sequence(fn ($sequence) => ['age' => $sequence->index])
+        ->create();
+
+    makeRequest('http://localhost?perPage=5');
+    $first = TestModel::index()->cursorPaginate();
+
+    makeRequest('http://localhost?perPage=5&cursor='.$first->nextCursor()->encode());
+    $second = TestModel::index()->cursorPaginate();
+
+    expect($second->first()->age)->toBe(5);
+    expect($second->count())->toBe(5);
+});
+
+test('cursor pagination respects the page-size ceiling', function () {
+    TestModel::factory()->count(20)->create();
+
+    makeRequest('http://localhost?perPage=1000');
+
+    expect(TestModel::index()->cursorPaginate()->perPage())->toBe(100);
+});
+
+test('cursor pagination applies filters and sorting', function () {
+    TestModel::factory()
+        ->count(20)
+        ->sequence(fn ($sequence) => ['age' => $sequence->index])
+        ->create();
+
+    makeRequest('http://localhost?filter[age][$gte]=10&sort=-age&perPage=3');
+
+    $result = TestModel::index()
+        ->filterable(['age'])
+        ->sortable(['age'])
+        ->cursorPaginate();
+
+    expect($result->count())->toBe(3);
+    expect($result->first()->age)->toBe(19);
+});
+
+test('the cursor parameter can be renamed', function () {
+    TestModel::factory()->count(20)->create();
+
+    makeRequest('http://localhost?perPage=5');
+
+    $result = TestModel::index()->cursorName('c')->cursorPaginate();
+
+    expect($result->nextPageUrl())->toContain('c=');
 });

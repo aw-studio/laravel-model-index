@@ -11,6 +11,8 @@ trait PaginateIndex
 {
     protected $pageName = 'page';
 
+    protected $cursorName = 'cursor';
+
     /**
      * Page size for this builder instance.
      *
@@ -53,6 +55,18 @@ trait PaginateIndex
     public function pageName(string $pageName)
     {
         $this->pageName = $pageName;
+
+        return $this;
+    }
+
+    /**
+     * Rename the cursor query parameter used by cursor pagination.
+     *
+     * @return $this
+     */
+    public function cursorName(string $cursorName)
+    {
+        $this->cursorName = $cursorName;
 
         return $this;
     }
@@ -109,6 +123,27 @@ trait PaginateIndex
 
         return $this->query()
             ->paginate($perPage, ['*'], $this->pageName)
+            ->withQueryString();
+    }
+
+    /**
+     * Cursor-paginate the query.
+     *
+     * Cursor pagination is keyset-based: it does not COUNT the full result set
+     * and does not degrade on deep pages the way OFFSET does, which matters on
+     * large lists. The trade-off is no total or last page, and no jumping to an
+     * arbitrary page number - so it suits infinite scroll rather than a numbered
+     * pager.
+     *
+     * @param  int|null  $perPage
+     * @return \Illuminate\Contracts\Pagination\CursorPaginator
+     */
+    public function cursorPaginateFromRequest(Request $request, $perPage = null)
+    {
+        $perPage = $this->normalizePerPage($perPage ?? $request->get('perPage', $this->defaultPerPage()));
+
+        return $this->query()
+            ->cursorPaginate($perPage, ['*'], $this->cursorName)
             ->withQueryString();
     }
 }

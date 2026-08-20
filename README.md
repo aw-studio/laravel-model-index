@@ -105,6 +105,7 @@ worth knowing which you get:
 | --- | --- |
 | `get()` | `Illuminate\Support\Collection`, always |
 | `paginate($perPage = null)` | `LengthAwarePaginator`, always |
+| `cursorPaginate($perPage = null)` | `CursorPaginator`, always |
 | `first()` | Model or `null` |
 | `count()` | `int` |
 
@@ -240,6 +241,26 @@ return Post::index()
 Custom filter keys bypass the `filterable()` allowlist — registering the callback *is*
 the opt-in.
 
+### Filtering on relations
+
+Dot notation filters through an Eloquent relation, resolved with `whereHas`:
+
+```php
+Post::index()->filterable(['user.name', 'user.email'])->get();
+```
+
+```sh
+GET /posts?filter[user.name]=John
+GET /posts?filter[user.name][$containsi]=joh
+```
+
+Nested relations work too (`user.company.name`). Relation fields go through the
+same allowlist as ordinary columns, so they must be listed in `filterable()`.
+
+A dotted field is only treated as a relation when its first segment is an actual
+relation on the model — so if you join manually and filter on `table.column`,
+that still resolves as a qualified column reference.
+
 ### Configuring filterable fields on the model
 
 To reuse the same configuration everywhere, put it on the model instead. A method takes
@@ -351,6 +372,24 @@ Product::index()->maxPerPage(250)->paginate();
 Set `max_per_page` to `null` to remove the ceiling entirely — but note that an
 unbounded page size is both a denial-of-service lever and a bulk-extraction one.
 
+### Cursor pagination
+
+For large lists, `cursorPaginate()` is keyset-based: it does not `COUNT` the full
+result set and does not degrade on deep pages the way `OFFSET` does.
+
+```php
+Product::index()->sortable(['created_at'])->cursorPaginate();
+```
+
+```sh
+GET /products?perPage=25
+GET /products?perPage=25&cursor=eyJpZCI6MjUsIl9wb2ludHNUb05leHRJdGVtcyI6dHJ1ZX0
+```
+
+The trade-off is no `total` and no `last_page`, and no jumping to an arbitrary
+page number — so it suits infinite scroll rather than a numbered pager. Rename
+the cursor parameter with `cursorName()`.
+
 ## Builder reference
 
 | Method | Purpose |
@@ -364,11 +403,12 @@ unbounded page size is both a denial-of-service lever and a bulk-extraction one.
 | `search(string, callable)` | Register a custom search key |
 | `maxPerPage(int)` | Ceiling for `?perPage=` |
 | `pageName(string)` | Rename the page query parameter |
+| `cursorName(string)` | Rename the cursor query parameter |
 | `useResource(string)` | Wrap results in an API Resource |
 | `tap(callable)` | Run a callback against the builder |
 | `query()` | Get the underlying Eloquent builder |
 | `applyRequestQuery()` | Apply filter/sort/search without fetching |
-| `get()` / `paginate()` / `first()` / `count()` | Execute |
+| `get()` / `paginate()` / `cursorPaginate()` / `first()` / `count()` | Execute |
 
 Any other method is proxied to the underlying Eloquent builder, so you can mix in
 ordinary query methods:

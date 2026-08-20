@@ -78,6 +78,21 @@ class IndexQueryBuilder
         return $this->returnResults($this->paginateFromRequest($this->request, $perPage));
     }
 
+    /**
+     * Get the results as a cursor paginator.
+     *
+     * Suited to infinite scroll over large lists; see cursorPaginateFromRequest().
+     *
+     * @param  int|null  $perPage
+     * @return mixed
+     */
+    public function cursorPaginate($perPage = null)
+    {
+        $this->applyRequestQuery();
+
+        return $this->returnResults($this->cursorPaginateFromRequest($this->request, $perPage));
+    }
+
     public function first()
     {
         $this->applyRequestQuery();

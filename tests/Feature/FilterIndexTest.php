@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Carbon;
 use Workbench\App\Models\TestModel;
+use Workbench\App\Models\User;
 
 test('It filters with equal comperator by default', function () {
     TestModel::factory(['name' => 'foob'])->create();
@@ -749,4 +750,101 @@ test('multiple operators inside an OR branch inherit the group boolean', functio
 
     // `age >= 18 or age <= 30` matches every row.
     expect(TestModel::index()->get()->count())->toBe(3);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Relation filtering
+|--------------------------------------------------------------------------
+|
+| `searchable(['user.name'])` has always worked via orWhereHas, but filtering
+| the same field required a hand-written custom callback. Dot notation now
+| works in both.
+|
+*/
+
+test('it filters on a related model with dot notation', function () {
+    $alice = User::forceCreate(['name' => 'Alice', 'email' => 'a@example.test', 'password' => 'x']);
+    $bob = User::forceCreate(['name' => 'Bob', 'email' => 'b@example.test', 'password' => 'x']);
+
+    $match = TestModel::factory(['name' => 'first'])->create();
+    $match->forceFill(['user_id' => $alice->id])->save();
+
+    $other = TestModel::factory(['name' => 'second'])->create();
+    $other->forceFill(['user_id' => $bob->id])->save();
+
+    makeRequest('http://localhost?filter[user.name]=Alice');
+
+    $index = TestModel::index()->filterable(['user.name'])->get();
+
+    expect($index->count())->toBe(1);
+    expect($index->first()->id)->toBe($match->id);
+});
+
+test('it applies operators to relation filters', function () {
+    $young = User::forceCreate(['name' => 'Young', 'email' => 'y@example.test', 'password' => 'x']);
+    $old = User::forceCreate(['name' => 'Old', 'email' => 'o@example.test', 'password' => 'x']);
+
+    $a = TestModel::factory()->create();
+    $a->forceFill(['user_id' => $young->id])->save();
+    $b = TestModel::factory()->create();
+    $b->forceFill(['user_id' => $old->id])->save();
+
+    makeRequest('http://localhost?filter[user.name][$containsi]=YOUN');
+
+    $index = TestModel::index()->filterable(['user.name'])->get();
+
+    expect($index->count())->toBe(1);
+    expect($index->first()->id)->toBe($a->id);
+});
+
+test('relation filters respect the filterable allowlist', function () {
+    makeRequest('http://localhost?filter[user.name]=Alice');
+
+    expect(fn () => TestModel::index()->filterable(['name'])->get())
+        ->toThrow(InvalidArgumentException::class, 'Filtering by user.name is not allowed.');
+});
+
+test('a custom filter callback still wins over relation resolution', function () {
+    $alice = User::forceCreate(['name' => 'Alice', 'email' => 'a@example.test', 'password' => 'x']);
+    $match = TestModel::factory(['name' => 'wanted'])->create();
+    $match->forceFill(['user_id' => $alice->id])->save();
+    TestModel::factory(['name' => 'other'])->create();
+
+    makeRequest('http://localhost?filter[user.name]=Alice');
+
+    // Registering a callback is an explicit override; it must not be bypassed
+    // by the new built-in relation handling.
+    $index = TestModel::index()
+        ->filter('user.name', fn ($query, $value) => $query->where('name', 'wanted'))
+        ->get();
+
+    expect($index->count())->toBe(1);
+    expect($index->first()->name)->toBe('wanted');
+});
+
+test('a dotted field that is not a relation is treated as a column reference', function () {
+    // Someone joining manually and filtering on `table.column` must keep
+    // working - only fields whose first segment is an actual Eloquent relation
+    // are resolved via whereHas.
+    TestModel::factory(['name' => 'Alpha'])->create();
+    TestModel::factory(['name' => 'Beta'])->create();
+
+    makeRequest('http://localhost?filter[test_models.name]=Alpha');
+
+    $index = TestModel::index()->filterable(['test_models.name'])->get();
+
+    expect($index->count())->toBe(1);
+    expect($index->first()->name)->toBe('Alpha');
+});
+
+test('it filters through a nested relation', function () {
+    $alice = User::forceCreate(['name' => 'Alice', 'email' => 'a@example.test', 'password' => 'x']);
+    $match = TestModel::factory()->create();
+    $match->forceFill(['user_id' => $alice->id])->save();
+    TestModel::factory()->create();
+
+    makeRequest('http://localhost?filter[user.name][$startsWith]=Ali');
+
+    expect(TestModel::index()->filterable(['user.name'])->get()->count())->toBe(1);
 });

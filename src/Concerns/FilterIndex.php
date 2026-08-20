@@ -136,17 +136,86 @@ trait FilterIndex
                 throw new \InvalidArgumentException("Filtering by {$field} is not allowed.");
             }
 
-            match ($operator) {
-                '=', '!=', '>', '>=', '<', '<=', 'like', 'not like' => $this->applyBasicCondition($query, $field, $operator, $value, $logicalOperator),
-                'ci =', 'ci !=', 'ci like', 'ci not like' => $this->applyCaseInsensitiveCondition($query, $field, $operator, $value, $logicalOperator),
-                'in' => $this->applyWhereInCondition($query, $field, $value, $logicalOperator),
-                'not in' => $this->applyWhereNotInCondition($query, $field, $value, $logicalOperator),
-                'between' => $this->applyWhereBetweenCondition($query, $field, $value, $logicalOperator),
-                'null' => $this->applyWhereNullCondition($query, $field, $logicalOperator),
-                'not null' => $this->applyWhereNotNullCondition($query, $field, $logicalOperator),
-                default => throw new \InvalidArgumentException("Unsupported operator '{$operator}' for field '{$field}'"),
-            };
+            $this->applyCondition($query, $field, $operator, $value, $logicalOperator);
         }
+    }
+
+    /**
+     * Apply a single condition, resolving relation fields as needed.
+     *
+     * @param  string  $field
+     * @param  string  $operator
+     * @param  mixed  $value
+     * @param  string  $logicalOperator
+     * @return void
+     *
+     * @throws \InvalidArgumentException
+     */
+    protected function applyCondition(Builder $query, $field, $operator, $value, $logicalOperator)
+    {
+        if ($this->isRelationField($query, $field)) {
+            $this->applyRelationCondition($query, $field, $operator, $value, $logicalOperator);
+
+            return;
+        }
+
+        match ($operator) {
+            '=', '!=', '>', '>=', '<', '<=', 'like', 'not like' => $this->applyBasicCondition($query, $field, $operator, $value, $logicalOperator),
+            'ci =', 'ci !=', 'ci like', 'ci not like' => $this->applyCaseInsensitiveCondition($query, $field, $operator, $value, $logicalOperator),
+            'in' => $this->applyWhereInCondition($query, $field, $value, $logicalOperator),
+            'not in' => $this->applyWhereNotInCondition($query, $field, $value, $logicalOperator),
+            'between' => $this->applyWhereBetweenCondition($query, $field, $value, $logicalOperator),
+            'null' => $this->applyWhereNullCondition($query, $field, $logicalOperator),
+            'not null' => $this->applyWhereNotNullCondition($query, $field, $logicalOperator),
+            default => throw new \InvalidArgumentException("Unsupported operator '{$operator}' for field '{$field}'"),
+        };
+    }
+
+    /**
+     * Determine whether a dotted field names an Eloquent relation.
+     *
+     * A dotted field is ambiguous: `user.name` may mean "the name column of
+     * the user relation", or a qualified column reference on a manually joined
+     * table. Only the former is resolved via whereHas, so existing queries that
+     * join and filter on `table.column` keep working.
+     *
+     * @param  string  $field
+     * @return bool
+     */
+    protected function isRelationField(Builder $query, $field)
+    {
+        if (! str_contains($field, '.')) {
+            return false;
+        }
+
+        [$relation] = explode('.', $field, 2);
+
+        return $query->getModel()->isRelation($relation);
+    }
+
+    /**
+     * Apply a condition to a related model.
+     *
+     * The remainder of the field is passed back through applyCondition(), so
+     * nested relations such as `user.company.name` resolve recursively.
+     *
+     * @param  string  $field
+     * @param  string  $operator
+     * @param  mixed  $value
+     * @param  string  $logicalOperator
+     * @return void
+     */
+    protected function applyRelationCondition(Builder $query, $field, $operator, $value, $logicalOperator)
+    {
+        [$relation, $rest] = explode('.', $field, 2);
+
+        $method = $logicalOperator === '$or' ? 'orWhereHas' : 'whereHas';
+
+        $query->{$method}($relation, function (Builder $related) use ($rest, $operator, $value) {
+            // Inside the existence subquery the conditions are always ANDed;
+            // the outer boolean has already been applied by whereHas/orWhereHas.
+            $this->applyCondition($related, $rest, $operator, $value, '$and');
+        });
     }
 
     /**
